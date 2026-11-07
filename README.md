@@ -8,6 +8,15 @@ This plugin for [Obsidian](https://obsidian.md) integrates your academic referen
 
 The plugin supports reading bibliographies in [BibTeX / BibLaTeX `.bib` format][4] and [CSL-JSON format][1].
 
+## Roadmap
+
+Being a maintained fork means this plugin evolves again. Planned work:
+
+- Modernize the build toolchain (esbuild, current TypeScript) and add continuous integration
+- Work through the open bug reports from the upstream issue tracker
+- Quality-of-life improvements: better error notices for configuration problems, visibility into library loading state
+- Keep template variables and behavior compatible with upstream unless there is a good reason to change
+
 ## Setup
 
 You can install this plugin via the Obsidian community plugin browser once it is listed there; until then you can install it manually or with [BRAT](https://github.com/TfTHacker/obsidian42-brat) using the repository URL. It requires Obsidian 0.15.9 or higher.

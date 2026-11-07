@@ -17,4 +17,17 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
     },
   },
+  {
+    // Test code and mocks conventionally prefix unused parameters (stub
+    // method signatures, jest.fn() wrappers) with an underscore. The mock
+    // shims re-export CommonJS packages for jest's module mapper.
+    files: ['src/__tests__/**'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
 );

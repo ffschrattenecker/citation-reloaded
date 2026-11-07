@@ -46,8 +46,15 @@
     "promise-worker": "^2.0.1"
   },
   "jest": {
+    "testMatch": [
+      "**/__tests__/**/*.spec.ts"
+    ],
     "moduleNameMapper": {
-      "src/(.*)": "<rootDir>/src/$1"
+      "src/(.*)": "<rootDir>/src/$1",
+      "^obsidian$": "<rootDir>/src/__tests__/mocks/obsidian.ts",
+      "^web-worker:./worker$": "<rootDir>/src/__tests__/mocks/web-worker.ts",
+      "^promise-worker$": "<rootDir>/src/__tests__/mocks/promise-worker.ts",
+      "^original-fs$": "<rootDir>/src/__tests__/mocks/original-fs.ts"
     },
     "moduleFileExtensions": [
       "js",

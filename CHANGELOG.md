@@ -4,6 +4,20 @@ All notable changes to Citations Reloaded are documented here. For
 releases prior to 0.4.6, see the upstream project at
 <https://github.com/hans/obsidian-citation-plugin/releases>.
 
+## [0.5.1]
+
+### Fixed
+
+- The 0.5.0 startup fallback for slow vaults passed the already-resolved
+  absolute export path to the vault adapter, but Obsidian's
+  `FileSystemAdapter` prefixes its argument with the vault root, so on
+  real CIFS vaults the startup load read `<vault>/<absolute>` and failed
+  with ENOENT — the library only appeared after a manual refresh. The
+  adapter now receives the vault-relative path, and export files outside
+  the vault are read through Electron's `fs` directly. Found by the CDP
+  smoke test on the real vault; the unit-test adapter mocks now model
+  the real path-joining behavior so this class of bug is covered.
+
 ## [0.5.0]
 
 ### Added

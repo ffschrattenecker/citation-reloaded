@@ -85,7 +85,10 @@ const common = {
   format: 'cjs',
   platform: 'node',
   target: 'es2018',
-  sourcemap: 'inline',
+  // External map: an inline sourcemap ballooned main.js to ~6.6 MB with
+  // the base64 payload making up ~4.5 MB of it. The external .js.map file
+  // is gitignored and never shipped as a release asset.
+  sourcemap: true,
   logLevel: 'info',
   outfile: path.join(SRC_PATH, 'main.js'),
   external: ['obsidian', 'original-fs'],

@@ -10,6 +10,7 @@ import {
 } from 'obsidian';
 import * as path from 'path';
 import * as chokidar from 'chokidar';
+import * as fs from 'original-fs';
 
 import { create, TemplateDelegate as Template } from 'handlebars';
 
@@ -242,8 +243,16 @@ export default class CitationPlugin extends Plugin {
       if (file instanceof TFile) {
         return this.app.vault.read(file);
       }
+      // Not (yet) indexed, e.g. during startup on slow vaults. The real
+      // FileSystemAdapter prefixes its argument with the vault root
+      // (getFullPath), so it must be given the vault-relative path;
+      // passing the absolute path reads "<vault>/<absolute>" (found by
+      // the CDP smoke on a CIFS-mounted vault).
+      return this.app.vault.adapter.read(relative);
     }
-    return this.app.vault.adapter.read(filePath);
+    // Outside the vault the adapter cannot be used either, for the same
+    // reason; read through Electron's fs directly.
+    return fs.promises.readFile(filePath, 'utf-8');
   }
 
   /**
@@ -256,8 +265,15 @@ export default class CitationPlugin extends Plugin {
       if (file instanceof TFile) {
         return true;
       }
+      // Adapter takes the vault-relative path; see readLibraryFile.
+      return this.app.vault.adapter.exists(relative);
     }
-    return this.app.vault.adapter.exists(filePath);
+    try {
+      await fs.promises.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async loadLibrary(): Promise<Library> {

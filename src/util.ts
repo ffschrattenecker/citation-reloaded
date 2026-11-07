@@ -85,7 +85,7 @@ export class WorkerManager {
    * If `blockingChannel` option is true and the channel is currently blocked,
    * the message will be discarded and an error will be thrown.
    */
-  async post<TResult = any, TInput = any>(msg: TInput): Promise<TResult> {
+  async post<TResult = unknown, TInput = unknown>(msg: TInput): Promise<TResult> {
     if (this.options.blockingChannel && this.blocked) {
       throw new WorkerManagerBlocked();
     }

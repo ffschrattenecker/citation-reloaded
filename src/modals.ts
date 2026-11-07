@@ -94,7 +94,8 @@ class SearchModal extends FuzzySuggestModal<Entry> {
       this.inputEl.disabled = false;
       this.inputEl.focus();
 
-      // @ts-ignore: not exposed in API.
+      // @ts-expect-error: updateSuggestions is not exposed in the public
+      // Obsidian typings.
       this.updateSuggestions();
     }
   }
@@ -145,7 +146,7 @@ class SearchModal extends FuzzySuggestModal<Entry> {
           ] as SearchMatchPart;
         })
         .filter((match: SearchMatchPart) => {
-          const [matchStart, matchEnd] = match;
+          const [matchStart] = match;
           return matchStart >= 0;
         });
     };
@@ -270,7 +271,6 @@ export class InsertCitationModal extends SearchModal {
     ]);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onChooseItem(item: Entry, evt: MouseEvent | KeyboardEvent): void {
     const isAlternative = evt instanceof KeyboardEvent && evt.shiftKey;
     this.plugin

@@ -1,6 +1,5 @@
 import {
   FileSystemAdapter,
-  MarkdownSourceView,
   MarkdownView,
   normalizePath,
   Plugin,
@@ -67,8 +66,9 @@ export default class CitationPlugin extends Plugin {
     const view = this.app.workspace.activeLeaf.view;
     if (!(view instanceof MarkdownView)) return null;
 
-    const sourceView = view.sourceMode;
-    return (sourceView as MarkdownSourceView).cmEditor;
+    const sourceView = (view as { sourceMode?: { cmEditor?: CodeMirror.Editor } })
+      .sourceMode;
+    return sourceView?.cmEditor ?? null;
   }
 
   async loadSettings(): Promise<void> {
@@ -238,7 +238,10 @@ export default class CitationPlugin extends Plugin {
 
           this.library = new Library(
             Object.fromEntries(
-              entries.map((e) => [(e as IIndexable)[idKey], new adapter(e)]),
+              entries.map((e: EntryData) => [
+                (e as IIndexable)[idKey],
+                new adapter(e),
+              ]),
             ),
           );
           console.debug(
@@ -249,11 +252,11 @@ export default class CitationPlugin extends Plugin {
 
           return this.library;
         })
-        .catch((e) => {
+        .catch((e: unknown): Library | null => {
           if (e instanceof WorkerManagerBlocked) {
             // Silently catch WorkerManager error, which will be thrown if the
             // library is already being loaded
-            return;
+            return null;
           }
 
           console.error(e);

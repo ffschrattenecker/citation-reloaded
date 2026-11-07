@@ -44,13 +44,6 @@ export class CitationSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
-  open(): void {
-    super.open();
-    this.checkCitationExportPath(
-      this.plugin.settings.citationExportPath,
-    ).then(() => this.showCitationExportPathSuccess());
-  }
-
   addValueChangeCallback<T extends HTMLTextAreaElement | HTMLInputElement>(
     component: AbstractTextComponent<T> | DropdownComponent,
     settingsKey: string,
@@ -76,6 +69,12 @@ export class CitationSettingTab extends PluginSettingTab {
   }
 
   display(): void {
+    // Replaces the legacy `open()` override: Obsidian shows settings tabs
+    // via display() on current versions, so validate the export path here.
+    this.checkCitationExportPath(
+      this.plugin.settings.citationExportPath,
+    ).then(() => this.showCitationExportPathSuccess());
+
     const { containerEl } = this;
 
     containerEl.empty();
@@ -89,7 +88,7 @@ export class CitationSettingTab extends PluginSettingTab {
         this.buildValueInput(
           component.addOptions(CITATION_DATABASE_FORMAT_LABELS),
           'citationExportFormat',
-          (value) => {
+          () => {
             this.checkCitationExportPath(
               this.plugin.settings.citationExportPath,
             ).then((success) => {
@@ -251,7 +250,7 @@ export class CitationSettingTab extends PluginSettingTab {
         this.plugin.resolveLibraryPath(filePath),
       );
       this.citationPathErrorEl.addClass('d-none');
-    } catch (e) {
+    } catch {
       this.citationPathSuccessEl.addClass('d-none');
       this.citationPathErrorEl.removeClass('d-none');
       return false;

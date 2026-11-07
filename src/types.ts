@@ -9,7 +9,7 @@ export interface IIndexable {
   [key: string]: any;
 }
 
-const databaseTypes = ['csl-json', 'biblatex'] as const;
+export const databaseTypes = ['csl-json', 'biblatex'] as const;
 export type DatabaseType = typeof databaseTypes[number];
 
 export const TEMPLATE_VARIABLES = {
@@ -44,7 +44,7 @@ export class Library {
    * For the given citekey, find the corresponding `Entry` and return a
    * collection of template variable assignments.
    */
-  getTemplateVariablesForCitekey(citekey: string): Record<string, any> {
+  getTemplateVariablesForCitekey(citekey: string): Record<string, unknown> {
     const entry: Entry = this.entries[citekey];
     const shortcuts = {
       citekey: citekey,
@@ -200,7 +200,10 @@ export abstract class Entry {
   }
 
   toJSON(): Record<string, unknown> {
-    const jsonObj: Record<string, unknown> = Object.assign({}, this);
+    const jsonObj: Record<string, unknown> = Object.assign(
+      {},
+      this,
+    ) as Record<string, unknown>;
 
     // add getter values
     const proto = Object.getPrototypeOf(this);
@@ -211,7 +214,7 @@ export abstract class Entry {
           try {
             const val = (this as IIndexable)[key];
             jsonObj[key] = val;
-          } catch (error) {
+          } catch {
             return;
           }
         }
@@ -393,9 +396,12 @@ export class EntryBibLaTeXAdapter extends Entry {
       (map: [string, string]) => {
         const [src, tgt] = map;
         if (src in this.data.fields) {
-          let val = this.data.fields[src];
-          if (BIBLATEX_PROPERTY_TAKE_FIRST.includes(src)) {
-            val = (val as any[])[0];
+          let val: string | string[] = this.data.fields[src];
+          if (
+            BIBLATEX_PROPERTY_TAKE_FIRST.includes(src) &&
+            Array.isArray(val)
+          ) {
+            val = val[0];
           }
 
           (this as IIndexable)[tgt] = val;
@@ -416,10 +422,10 @@ export class EntryBibLaTeXAdapter extends Entry {
     // array ; so we'll do it manually / redundantly
     let ret: string[] = [];
     if (this.data.fields.file) {
-      ret = ret.concat(this.data.fields.file.flatMap((x) => x.split(';')));
+      ret = ret.concat(this.data.fields.file.flatMap((x: string) => x.split(';')));
     }
     if (this.data.fields.files) {
-      ret = ret.concat(this.data.fields.files.flatMap((x) => x.split(';')));
+      ret = ret.concat(this.data.fields.files.flatMap((x: string) => x.split(';')));
     }
 
     return ret;

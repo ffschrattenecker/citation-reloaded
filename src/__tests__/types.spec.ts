@@ -6,8 +6,6 @@ import { compile as compileTemplate } from 'handlebars';
 
 import {
   Library,
-  Entry,
-  EntryData,
   EntryDataBibLaTeX,
   EntryDataCSL,
   EntryBibLaTeXAdapter,
@@ -103,11 +101,11 @@ const BIBLATEX_FIELDS_ONLY = ['eprint', 'eprinttype', 'files', 'note'];
 // Test whether loaded and expected libraries are the same, ignoring casing and
 // hyphenation and the `entry` field
 function matchLibraryRender(
-  actual: Record<string, string>[],
-  expected: Record<string, string>[],
+  actual: Record<string, unknown>[],
+  expected: Record<string, unknown>[],
   dropFields?: string[],
 ): void {
-  const transform = (dict: Record<string, string>): Record<string, string> => {
+  const transform = (dict: Record<string, unknown>): Record<string, string> => {
     delete dict.entry;
 
     if (dropFields) {
@@ -169,12 +167,12 @@ describe('biblatex library', () => {
   });
 
   test('can support library', () => {
-    const library = loadLibrary();
+    loadLibrary();
   });
 
   test('renders correctly', () => {
     const library = loadLibrary();
-    const templateVariables: Record<string, string>[] = Object.keys(
+    const templateVariables: Record<string, unknown>[] = Object.keys(
       library.entries,
     ).map((citekey) => {
       return library.getTemplateVariablesForCitekey(citekey);
@@ -192,7 +190,7 @@ describe('biblatex library', () => {
 describe('biblatex regression tests', () => {
   test('regression 7f9aefe (non-fatal parser error handling)', () => {
     const load = () => {
-      const library = loadBibLaTeXLibrary(
+      loadBibLaTeXLibrary(
         loadBibLaTeXEntries('regression_7f9aefe.bib'),
       );
     };
@@ -207,7 +205,7 @@ describe('biblatex regression tests', () => {
 
   test('regression fe15ef6 (fatal parser error handling)', () => {
     const load = () => {
-      const library = loadBibLaTeXLibrary(
+      loadBibLaTeXLibrary(
         loadBibLaTeXEntries('regression_fe15ef6.bib'),
       );
     };
@@ -242,12 +240,12 @@ describe('csl library', () => {
   }
 
   test('can support library', () => {
-    const library = loadLibrary();
+    loadLibrary();
   });
 
   test('renders correctly', () => {
     const library = loadLibrary();
-    const templateVariables: Record<string, string>[] = Object.keys(
+    const templateVariables: Record<string, unknown>[] = Object.keys(
       library.entries,
     ).map((citekey) => {
       return library.getTemplateVariablesForCitekey(citekey);

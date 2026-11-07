@@ -20,8 +20,8 @@
   height: 32px;
   margin: 10px auto;
   border-radius: 50%;
-  border: 3px solid #eee;
-  border-color: #eee transparent #eee transparent;
+  border: 3px solid var(--background-modifier-border);
+  border-color: var(--background-modifier-border) transparent var(--background-modifier-border) transparent;
   animation: lds-dual-ring 1.2s linear infinite;
 }
 @keyframes lds-dual-ring {
@@ -33,8 +33,8 @@
   }
 }
 
-#zoteroSettingTab .text-monospace {
-  font-family: monospace;
+#citation-reloaded-settings .text-monospace {
+  font-family: var(--font-monospace);
 }
 
 .zoteroModalResults .suggestion-item {
@@ -47,7 +47,7 @@
   display: block;
 }
 .zoteroAuthors {
-  color: #555;
+  color: var(--text-muted);
   font-size: 13px;
 }
 .zoteroAuthorsEmpty::after {
@@ -55,31 +55,13 @@
   content: 'Unknown authors';
 }
 .zoteroCitekey {
-  color: #555;
+  color: var(--text-muted);
   font-size: 13px;
-  font-family: monospace;
+  font-family: var(--font-monospace);
   display: inline-block;
   margin-right: 5px;
   padding-right: 5px;
-  border-right: 1px solid #ccc;
-}
-
-.theme-dark .zoteroTitle {
-  font-size: 14px;
-  display: block;
-}
-.theme-dark .zoteroAuthors {
-  color: #aaa;
-  font-size: 13px;
-}
-.theme-dark .zoteroCitekey {
-  color: #aaa;
-  font-size: 13px;
-  font-family: monospace;
-  display: inline-block;
-  margin-right: 5px;
-  padding-right: 5px;
-  border-right: 1px solid #aaa;
+  border-right: 1px solid var(--background-modifier-border);
 }
 
 /** Settings dialog **/
@@ -107,7 +89,7 @@
   color: var(--text-accent-hover);
 }
 
-#zoteroSettingTab textarea {
+#citation-reloaded-settings textarea {
   resize: vertical;
   width: 100%;
   min-height: 10em;

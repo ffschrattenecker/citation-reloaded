@@ -19,9 +19,14 @@ const expectedRender: Record<string, string>[] = [
     abstract:
       'Biomineralization links soft organic tissues, which are compositionally akin to the atmosphere and oceans, with the hard materials of the solid Earth. It provides organisms with skeletons and shells while they are alive, and when they die these are deposited as sediment in environments from river plains to the deep ocean floor. It is also these hard, resistant products of life which are mainly responsible for the Earths fossil record. Consequently, biomineralization involves biologists, chemists, and geologists in interdisciplinary studies at one of the interfaces between Earth and life.',
     authorString: 'S. Weiner',
+    authorLastNameString: 'Weiner',
+    firstAuthorLastName: 'Weiner',
+    firstAuthorLastNameEtAl: 'Weiner',
     containerTitle: 'Rev. Mineral. Geochemistry',
     DOI: '10.2113/0540001',
     eprint: '1105.3402',
+    ISBN: '1529-6466',
+    ISSN: '1529-6466',
     note: 'This is a test note with some <b>formatting</b>.',
     page: '1-29',
     title:
@@ -36,14 +41,20 @@ const expectedRender: Record<string, string>[] = [
       'In this paper, we define and apply representational stability analysis (ReStA), an intuitive way of analyzing neural language models. ReStA is a variant of the popular representational similarity analysis (RSA) in cognitive neuroscience. While RSA can be used to compare representations in models, model components, and human brains, ReStA compares instances of the same model, while systematically varying single model parameter. Using ReStA, we study four recent and successful neural language models, and evaluate how sensitive their internal representations are to the amount of prior context. Using RSA, we perform a systematic study of how similar the representational spaces in the first and second (or higher) layers of these models are to each other and to patterns of activation in the human brain. Our results reveal surprisingly strong differences between language models, and give insights into where the deep linguistic processing, that integrates information over multiple sentences, is happening in these models. The combination of ReStA and RSA on models and brains allows us to start addressing the important question of what kind of linguistic processes we can hope to observe in fMRI brain imaging data. In particular, our results suggest that the data on story reading from Wehbe et al. (2014) contains a signal of shallow linguistic processing, but show no evidence on the more interesting deep linguistic processing.',
     authorString:
       'Samira Abnar, Lisa Beinborn, Rochelle Choenni, Willem Zuidema',
+    authorLastNameString: 'Abnar, Beinborn, Choenni, Zuidema',
+    firstAuthorLastName: 'Abnar',
+    firstAuthorLastNameEtAl: 'Abnar et al.',
     containerTitle: 'arxiv:1906.01539 [cs, q-bio]',
+    dateAdded: '2019-08-29',
     DOI: undefined,
     eprint: '1906.01539',
     eprinttype: 'arxiv',
+    keywords:
+      'Computer Science - Artificial Intelligence,Computer Science - Computation and Language,Quantitative Biology - Neurons and Cognition',
     page: undefined,
     title:
       'Blackbox meets blackbox: Representational Similarity and Stability Analysis of Neural Language Models and Brains',
-    titleShort: "Blackbox meets blackbox",
+    titleShort: 'Blackbox meets blackbox',
     URL: 'http://arxiv.org/abs/1906.01539',
     year: '2019',
     zoteroSelectURI: 'zotero://select/items/@abnar2019blackbox',
@@ -53,8 +64,13 @@ const expectedRender: Record<string, string>[] = [
     abstract:
       'Two theoretical ideas have emerged recently with the ambition to provide a unifying functional explanation of neural population coding and dynamics: predictive coding and Bayesian inference. Here, we describe the two theories and their combination into a single framework: Bayesian predictive coding. We clarify how the two theories can be distinguished, despite sharing core computational concepts and addressing an overlapping set of empirical phenomena. We argue that predictive coding is an algorithmic/representational motif that can serve several different computational goals of which Bayesian inference is but one. Conversely, while Bayesian inference can utilize predictive coding, it can also be realized by a variety of other representations. We critically evaluate the experimental evidence supporting Bayesian predictive coding and discuss how to test it more directly.',
     authorString: 'Laurence Aitchison, Máté Lengyel',
+    authorLastNameString: 'Aitchison, Lengyel',
+    firstAuthorLastName: 'Aitchison',
+    firstAuthorLastNameEtAl: 'Aitchison et al.',
     containerTitle: 'Current Opinion in Neurobiology',
+    dateAdded: '2019-06-24',
     DOI: '10.1016/j.conb.2017.08.010',
+    ISSN: '0959-4388',
     page: '219–227',
     title:
       'With or without you: Predictive coding and Bayesian inference in the brain',
@@ -66,8 +82,13 @@ const expectedRender: Record<string, string>[] = [
     citekey: 'alexandrescu2006factored',
     abstract: undefined,
     authorString: 'Andrei Alexandrescu, Katrin Kirchhoff',
+    authorLastNameString: 'Alexandrescu, Kirchhoff',
+    firstAuthorLastName: 'Alexandrescu',
+    firstAuthorLastNameEtAl: 'Alexandrescu et al.',
     containerTitle: undefined,
+    dateAdded: '2015-02-19',
     DOI: undefined,
+    keywords: 'neural language models,neural networks,nlp,unknown words',
     page: '1–4',
     title: 'Factored Neural Language Models',
     URL: 'http://aclasb.dfki.de/nlp/bib/N06-2001',
@@ -80,7 +101,9 @@ const expectedRender: Record<string, string>[] = [
     abstract: undefined,
     authorString: undefined,
     containerTitle: undefined,
+    dateAdded: '2020-08-10',
     DOI: '10.1007/978-3-030-34308-8',
+    ISBN: '978-3-030-34307-1 978-3-030-34308-8',
     page: undefined,
     title:
       'Perspectives on Causation: Selected Papers from the Jerusalem 2017 Workshop',
@@ -141,7 +164,7 @@ function loadBibLaTeXLibrary(entries: EntryDataBibLaTeX[]): Library {
       ]),
     ),
   );
-};
+}
 
 const renderAdvancedTemplate = (
   loadLibrary: () => Library,
@@ -185,14 +208,57 @@ describe('biblatex library', () => {
     const render = renderAdvancedTemplate(loadLibrary, 'aitchison2017you');
     expect(render).toBe('[[Aitchison, Laurence]], [[Lengyel, Máté]]');
   });
+
+  test('exposes keywords, ISBN, ISSN, dateAdded, files and author name variables', () => {
+    const library = loadLibrary();
+
+    const weiner = library.getTemplateVariablesForCitekey('Weiner2003');
+    expect(weiner.ISBN).toBe('1529-6466');
+    expect(weiner.ISSN).toBe('1529-6466');
+    expect(weiner.firstAuthorLastName).toBe('Weiner');
+    // Single author: no "et al."
+    expect(weiner.firstAuthorLastNameEtAl).toBe('Weiner');
+    expect(Array.isArray(weiner.files)).toBe(true);
+    expect((weiner.files as string[])[0]).toContain('Weiner - 2003');
+
+    const abnar = library.getTemplateVariablesForCitekey('abnar2019blackbox');
+    expect(abnar.keywords).toBe(
+      'Computer Science - Artificial Intelligence,Computer Science - Computation and Language,Quantitative Biology - Neurons and Cognition',
+    );
+    expect(abnar.dateAdded).toBe('2019-08-29');
+    expect(abnar.authorLastNameString).toBe(
+      'Abnar, Beinborn, Choenni, Zuidema',
+    );
+    expect(abnar.firstAuthorLastName).toBe('Abnar');
+    expect(abnar.firstAuthorLastNameEtAl).toBe('Abnar et al.');
+  });
+
+  test('renders keywords and files in handlebars templates', () => {
+    const library = loadLibrary();
+    const template = compileTemplate(
+      '{{keywords}}|{{#each files}}[{{this}}]{{/each}}|{{firstAuthorLastNameEtAl}}, {{year}}',
+    );
+
+    const abnar = template(
+      library.getTemplateVariablesForCitekey('abnar2019blackbox'),
+    );
+    expect(abnar).toContain('Computer Science - Artificial Intelligence');
+    expect(abnar).toContain(
+      '[/home/jon/.dropbox-mit/Dropbox (MIT)/Papers/2019/Abnar et al_2019_Blackbox meets blackbox.pdf]',
+    );
+    expect(abnar.endsWith('Abnar et al., 2019')).toBe(true);
+
+    const weiner = template(
+      library.getTemplateVariablesForCitekey('Weiner2003'),
+    );
+    expect(weiner.endsWith('Weiner, 2003')).toBe(true);
+  });
 });
 
 describe('biblatex regression tests', () => {
   test('regression 7f9aefe (non-fatal parser error handling)', () => {
     const load = () => {
-      loadBibLaTeXLibrary(
-        loadBibLaTeXEntries('regression_7f9aefe.bib'),
-      );
+      loadBibLaTeXLibrary(loadBibLaTeXEntries('regression_7f9aefe.bib'));
     };
 
     // Make sure we log warning
@@ -205,9 +271,7 @@ describe('biblatex regression tests', () => {
 
   test('regression fe15ef6 (fatal parser error handling)', () => {
     const load = () => {
-      loadBibLaTeXLibrary(
-        loadBibLaTeXEntries('regression_fe15ef6.bib'),
-      );
+      loadBibLaTeXLibrary(loadBibLaTeXEntries('regression_fe15ef6.bib'));
     };
 
     // Make sure we log warning
@@ -257,5 +321,26 @@ describe('csl library', () => {
   test('advanced template render', () => {
     const render = renderAdvancedTemplate(loadLibrary, 'aitchison2017you');
     expect(render).toBe('[[Aitchison, Laurence]], [[Lengyel, Máté]]');
+  });
+
+  test('exposes keywords, ISBN, ISSN, dateAdded and author name variables', () => {
+    const library = loadLibrary();
+
+    const weiner = library.getTemplateVariablesForCitekey('Weiner2003');
+    expect(weiner.ISBN).toBe('1529-6466');
+    expect(weiner.ISSN).toBe('1529-6466');
+    expect(weiner.firstAuthorLastName).toBe('Weiner');
+    // CSL has no attached files
+    expect(weiner.files).toBeNull();
+
+    const abnar = library.getTemplateVariablesForCitekey('abnar2019blackbox');
+    expect(abnar.keywords).toBe(
+      'Computer Science - Artificial Intelligence,Computer Science - Computation and Language,Quantitative Biology - Neurons and Cognition',
+    );
+    expect(abnar.dateAdded).toBe('2019-08-29');
+    expect(abnar.authorLastNameString).toBe(
+      'Abnar, Beinborn, Choenni, Zuidema',
+    );
+    expect(abnar.firstAuthorLastNameEtAl).toBe('Abnar et al.');
   });
 });

@@ -1,19 +1,25 @@
 import {
+  Editor,
   FileSystemAdapter,
-  MarkdownView,
+  moment,
   normalizePath,
+  Notice,
   Plugin,
   TFile,
+  TFolder,
 } from 'obsidian';
 import * as path from 'path';
 import * as chokidar from 'chokidar';
-import * as CodeMirror from 'codemirror';
 
-import {
-  compile as compileTemplate,
-  TemplateDelegate as Template,
-} from 'handlebars';
+import { create, TemplateDelegate as Template } from 'handlebars';
 
+// Handlebars' `registerHelper` and `compile` are `this`-dependent methods on
+// the runtime environment. With esbuild, calling them as bare named imports
+// compiles to unbound calls (`(0, ns.registerHelper)(...)`), which crashes
+// at plugin load. Use a dedicated environment with bound methods instead.
+const Handlebars = create();
+const compileTemplate = Handlebars.compile.bind(Handlebars);
+const registerHelper = Handlebars.registerHelper.bind(Handlebars);
 
 import CitationEvents from './events';
 import {
@@ -40,6 +46,14 @@ import {
 } from './util';
 import LoadWorker from 'web-worker:./worker';
 
+// Template helper for inserting the current date/time, e.g. `{{now}}` (date
+// only) or `{{now "YYYY-MM-DD HH:mm"}}`. Useful for "date added" style
+// frontmatter in literature notes.
+registerHelper('now', (format?: unknown) => {
+  const fmt = typeof format === 'string' ? format : 'YYYY-MM-DD';
+  return moment().format(fmt);
+});
+
 export default class CitationPlugin extends Plugin {
   settings: CitationsPluginSettings;
   library: Library;
@@ -53,6 +67,8 @@ export default class CitationPlugin extends Plugin {
     blockingChannel: true,
   });
 
+  private watcher: chokidar.FSWatcher;
+
   events = new CitationEvents();
 
   loadErrorNotifier = new Notifier(
@@ -61,15 +77,6 @@ export default class CitationPlugin extends Plugin {
   literatureNoteErrorNotifier = new Notifier(
     'Unable to access literature note. Please check that the literature note folder exists, or update the Citations plugin settings.',
   );
-
-  get editor(): CodeMirror.Editor {
-    const view = this.app.workspace.activeLeaf.view;
-    if (!(view instanceof MarkdownView)) return null;
-
-    const sourceView = (view as { sourceMode?: { cmEditor?: CodeMirror.Editor } })
-      .sourceMode;
-    return sourceView?.cmEditor ?? null;
-  }
 
   async loadSettings(): Promise<void> {
     this.settings = new CitationsPluginSettings();
@@ -97,8 +104,17 @@ export default class CitationPlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
-  onload(): void {
-    this.loadSettings().then(() => this.init());
+  async onload(): Promise<void> {
+    await this.loadSettings();
+    await this.init();
+  }
+
+  async onunload(): Promise<void> {
+    // Release resources so nothing outlives the plugin (e.g. on reload).
+    await this.watcher?.close();
+    this.loadErrorNotifier.unload();
+    this.literatureNoteErrorNotifier.unload();
+    this.loadWorker.terminate();
   }
 
   async init(): Promise<void> {
@@ -107,37 +123,42 @@ export default class CitationPlugin extends Plugin {
       this.loadLibrary();
 
       // Set up a watcher to refresh whenever the export is updated
-      try {
-        // Wait until files are finished being written before going ahead with
-        // the refresh -- here, we request that `change` events be accumulated
-        // until nothing shows up for 500 ms
-        // TODO magic number
-        const watchOptions = {
-          awaitWriteFinish: {
-            stabilityThreshold: 500,
-          },
-        };
+      // Wait until files are finished being written before going ahead with
+      // the refresh -- here, we request that `change` events be accumulated
+      // until nothing shows up for 500 ms
+      const watchOptions = {
+        awaitWriteFinish: {
+          stabilityThreshold: 500,
+        },
+      };
 
-        chokidar
-          .watch(
-            this.resolveLibraryPath(this.settings.citationExportPath),
-            watchOptions,
-          )
-          .on('change', () => {
-            this.loadLibrary();
-          });
-      } catch {
-        this.loadErrorNotifier.show();
-      }
-    } else {
-      // TODO show warning?
+      this.watcher = chokidar
+        .watch(
+          this.resolveLibraryPath(this.settings.citationExportPath),
+          watchOptions,
+        )
+        .on('change', () => {
+          this.loadLibrary();
+        })
+        .on('error', (error) => {
+          console.error(error);
+          this.loadErrorNotifier.show();
+        });
     }
 
+    // NB: no default hotkeys are set on purpose -- they conflict between
+    // plugins and platforms. Users can bind their own in Obsidian's hotkey
+    // settings.
     this.addCommand({
       id: 'open-literature-note',
       name: 'Open literature note',
-      hotkeys: [{ modifiers: ['Ctrl', 'Shift'], key: 'o' }],
       callback: () => {
+        if (!this.settings.citationExportPath) {
+          new Notice(
+            'Set a citation export path in the plugin settings first.',
+          );
+          return;
+        }
         const modal = new OpenNoteModal(this.app, this);
         modal.open();
       },
@@ -146,7 +167,6 @@ export default class CitationPlugin extends Plugin {
     this.addCommand({
       id: 'update-bib-data',
       name: 'Refresh citation database',
-      hotkeys: [{ modifiers: ['Ctrl', 'Shift'], key: 'r' }],
       callback: () => {
         this.loadLibrary();
       },
@@ -155,9 +175,8 @@ export default class CitationPlugin extends Plugin {
     this.addCommand({
       id: 'insert-citation',
       name: 'Insert literature note link',
-      hotkeys: [{ modifiers: ['Ctrl', 'Shift'], key: 'e' }],
-      callback: () => {
-        const modal = new InsertNoteLinkModal(this.app, this);
+      editorCallback: (editor) => {
+        const modal = new InsertNoteLinkModal(this.app, this, editor);
         modal.open();
       },
     });
@@ -165,8 +184,8 @@ export default class CitationPlugin extends Plugin {
     this.addCommand({
       id: 'insert-literature-note-content',
       name: 'Insert literature note content in the current pane',
-      callback: () => {
-        const modal = new InsertNoteContentModal(this.app, this);
+      editorCallback: (editor) => {
+        const modal = new InsertNoteContentModal(this.app, this, editor);
         modal.open();
       },
     });
@@ -174,8 +193,8 @@ export default class CitationPlugin extends Plugin {
     this.addCommand({
       id: 'insert-markdown-citation',
       name: 'Insert Markdown citation',
-      callback: () => {
-        const modal = new InsertCitationModal(this.app, this);
+      editorCallback: (editor) => {
+        const modal = new InsertCitationModal(this.app, this, editor);
         modal.open();
       },
     });
@@ -195,79 +214,118 @@ export default class CitationPlugin extends Plugin {
     return path.resolve(vaultRoot, rawPath);
   }
 
+  /**
+   * If the resolved path points inside the vault, return its vault-relative
+   * path; otherwise return null.
+   */
+  private getVaultRelativePath(filePath: string): string | null {
+    const adapter = this.app.vault.adapter;
+    if (!(adapter instanceof FileSystemAdapter)) return null;
+
+    const relative = path.relative(adapter.getBasePath(), filePath);
+    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+      return null;
+    }
+    return normalizePath(relative);
+  }
+
+  /**
+   * Read the citation export file as UTF-8 text. Prefers the Vault API when
+   * the file is already indexed; falls back to the adapter when it is not
+   * (e.g. during startup on slow vaults, before Obsidian has finished
+   * indexing files).
+   */
+  async readLibraryFile(filePath: string): Promise<string> {
+    const relative = this.getVaultRelativePath(filePath);
+    if (relative) {
+      const file = this.app.vault.getAbstractFileByPath(relative);
+      if (file instanceof TFile) {
+        return this.app.vault.read(file);
+      }
+    }
+    return this.app.vault.adapter.read(filePath);
+  }
+
+  /**
+   * Returns true iff the citation export file exists and is readable.
+   */
+  async libraryFileExists(filePath: string): Promise<boolean> {
+    const relative = this.getVaultRelativePath(filePath);
+    if (relative) {
+      const file = this.app.vault.getAbstractFileByPath(relative);
+      if (file instanceof TFile) {
+        return true;
+      }
+    }
+    return this.app.vault.adapter.exists(filePath);
+  }
+
   async loadLibrary(): Promise<Library> {
-    console.debug('Citation plugin: Reloading library');
-    if (this.settings.citationExportPath) {
-      const filePath = this.resolveLibraryPath(
-        this.settings.citationExportPath,
-      );
-
-      // Unload current library.
-      this.events.trigger('library-load-start');
-      this.library = null;
-
-      return FileSystemAdapter.readLocalFile(filePath)
-        .then((buffer) => {
-          // If there is a remaining error message, hide it
-          this.loadErrorNotifier.hide();
-
-          // Decode file as UTF-8.
-          const dataView = new DataView(buffer);
-          const decoder = new TextDecoder('utf8');
-          const value = decoder.decode(dataView);
-
-          return this.loadWorker.post({
-            databaseRaw: value,
-            databaseType: this.settings.citationExportFormat,
-          });
-        })
-        .then((entries: EntryData[]) => {
-          let adapter: new (data: EntryData) => Entry;
-          let idKey: string;
-
-          switch (this.settings.citationExportFormat) {
-            case 'biblatex':
-              adapter = EntryBibLaTeXAdapter;
-              idKey = 'key';
-              break;
-            case 'csl-json':
-              adapter = EntryCSLAdapter;
-              idKey = 'id';
-              break;
-          }
-
-          this.library = new Library(
-            Object.fromEntries(
-              entries.map((e: EntryData) => [
-                (e as IIndexable)[idKey],
-                new adapter(e),
-              ]),
-            ),
-          );
-          console.debug(
-            `Citation plugin: successfully loaded library with ${this.library.size} entries.`,
-          );
-
-          this.events.trigger('library-load-complete');
-
-          return this.library;
-        })
-        .catch((e: unknown): Library | null => {
-          if (e instanceof WorkerManagerBlocked) {
-            // Silently catch WorkerManager error, which will be thrown if the
-            // library is already being loaded
-            return null;
-          }
-
-          console.error(e);
-          this.loadErrorNotifier.show();
-
-          return null;
-        });
-    } else {
+    if (!this.settings.citationExportPath) {
       console.warn(
         'Citations plugin: citation export path is not set. Please update plugin settings.',
       );
+      return null;
+    }
+
+    const filePath = this.resolveLibraryPath(this.settings.citationExportPath);
+
+    // Unload current library.
+    this.events.trigger('library-load-start');
+    this.library = null;
+
+    try {
+      const databaseRaw = await this.readLibraryFile(filePath);
+
+      // If there is a remaining error message, hide it
+      this.loadErrorNotifier.hide();
+
+      const entries = await this.loadWorker.post<EntryData[]>({
+        databaseRaw,
+        databaseType: this.settings.citationExportFormat,
+      });
+
+      let adapter: new (data: EntryData) => Entry;
+      let idKey: string;
+
+      switch (this.settings.citationExportFormat) {
+        case 'biblatex':
+          adapter = EntryBibLaTeXAdapter;
+          idKey = 'key';
+          break;
+        case 'csl-json':
+          adapter = EntryCSLAdapter;
+          idKey = 'id';
+          break;
+      }
+
+      this.library = new Library(
+        Object.fromEntries(
+          entries.map((e: EntryData) => [
+            (e as IIndexable)[idKey],
+            new adapter(e),
+          ]),
+        ),
+      );
+
+      this.events.trigger('library-load-complete');
+
+      return this.library;
+    } catch (e: unknown) {
+      if (e instanceof WorkerManagerBlocked) {
+        // Silently catch WorkerManager error, which will be thrown if the
+        // library is already being loaded -- the in-progress load will emit
+        // its own completion event.
+        return null;
+      }
+
+      console.error(e);
+      this.loadErrorNotifier.show();
+      // Always signal that loading finished, so open modals don't stay in
+      // the "loading" state forever (upstream issue #106).
+      this.events.trigger('library-load-error');
+
+      return null;
     }
   }
 
@@ -342,8 +400,7 @@ export default class CitationPlugin extends Plugin {
    * the given citekey. If no corresponding file is found, create one.
    */
   async getOrCreateLiteratureNoteFile(citekey: string): Promise<TFile> {
-    const path = this.getPathForCitekey(citekey);
-    const normalizedPath = normalizePath(path);
+    const normalizedPath = normalizePath(this.getPathForCitekey(citekey));
 
     let file = this.app.vault.getAbstractFileByPath(normalizedPath);
     if (file == null) {
@@ -355,8 +412,18 @@ export default class CitationPlugin extends Plugin {
         file = matches[0];
       } else {
         try {
+          // Make sure the configured literature note folder exists.
+          const folderPath = normalizePath(this.settings.literatureNoteFolder);
+          if (
+            folderPath &&
+            !(this.app.vault.getAbstractFileByPath(folderPath) instanceof
+              TFolder)
+          ) {
+            await this.app.vault.createFolder(folderPath);
+          }
+
           file = await this.app.vault.create(
-            path,
+            normalizedPath,
             this.getInitialContentForCitekey(citekey),
           );
         } catch (exc) {
@@ -370,47 +437,56 @@ export default class CitationPlugin extends Plugin {
   }
 
   async openLiteratureNote(citekey: string, newPane: boolean): Promise<void> {
-    this.getOrCreateLiteratureNoteFile(citekey)
-      .then((file: TFile) => {
-        this.app.workspace.getLeaf(newPane).openFile(file);
-      })
-      .catch(console.error);
+    try {
+      const file = await this.getOrCreateLiteratureNoteFile(citekey);
+      this.app.workspace.getLeaf(newPane).openFile(file);
+    } catch (e) {
+      console.error(e);
+    }
   }
 
-  async insertLiteratureNoteLink(citekey: string): Promise<void> {
-    this.getOrCreateLiteratureNoteFile(citekey)
-      .then((file: TFile) => {
-        const useMarkdown: boolean = (<VaultExt>this.app.vault).getConfig(
-          'useMarkdownLinks',
+  async insertLiteratureNoteLink(
+    citekey: string,
+    editor: Editor,
+  ): Promise<void> {
+    try {
+      const file = await this.getOrCreateLiteratureNoteFile(citekey);
+      const useMarkdown: boolean = (<VaultExt>this.app.vault).getConfig(
+        'useMarkdownLinks',
+      );
+      const title = this.getTitleForCitekey(citekey);
+
+      let linkText: string;
+      if (useMarkdown) {
+        const uri = encodeURI(
+          this.app.metadataCache.fileToLinktext(file, '', false),
         );
-        const title = this.getTitleForCitekey(citekey);
+        linkText = `[${title}](${uri})`;
+      } else {
+        linkText = `[[${title}]]`;
+      }
 
-        let linkText: string;
-        if (useMarkdown) {
-          const uri = encodeURI(
-            this.app.metadataCache.fileToLinktext(file, '', false),
-          );
-          linkText = `[${title}](${uri})`;
-        } else {
-          linkText = `[[${title}]]`;
-        }
-
-        this.editor.replaceSelection(linkText);
-      })
-      .catch(console.error);
+      editor.replaceSelection(linkText);
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   /**
-   * Format literature note content for a given reference and insert in the
-   * currently active pane.
+   * Format literature note content for a given reference and insert it at the
+   * cursor in the given editor.
    */
-  async insertLiteratureNoteContent(citekey: string): Promise<void> {
+  async insertLiteratureNoteContent(
+    citekey: string,
+    editor: Editor,
+  ): Promise<void> {
     const content = this.getInitialContentForCitekey(citekey);
-    this.editor.replaceRange(content, this.editor.getCursor());
+    editor.replaceRange(content, editor.getCursor());
   }
 
   async insertMarkdownCitation(
     citekey: string,
+    editor: Editor,
     alternative = false,
   ): Promise<void> {
     const func = alternative
@@ -418,6 +494,6 @@ export default class CitationPlugin extends Plugin {
       : this.getMarkdownCitationForCitekey;
     const citation = func.bind(this)(citekey);
 
-    this.editor.replaceRange(citation, this.editor.getCursor());
+    editor.replaceRange(citation, editor.getCursor());
   }
 }

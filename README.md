@@ -12,10 +12,13 @@ The plugin supports reading bibliographies in [BibTeX / BibLaTeX `.bib` format][
 
 Being a maintained fork means this plugin evolves again. Planned work:
 
-- Modernize the build toolchain (esbuild, current TypeScript) and add continuous integration
-- Work through the open bug reports from the upstream issue tracker
-- Quality-of-life improvements: better error notices for configuration problems, visibility into library loading state
 - Keep template variables and behavior compatible with upstream unless there is a good reason to change
+- More upstream feature requests, e.g. templates loaded from a note file
+  (upstream issue #92), inserting multiple citations at once (#178),
+  per-note bibliography files in frontmatter (#134), and auto-updating
+  existing literature notes when the library or templates change
+  (#88, #154, #174, #215)
+- Citation support on Obsidian Canvas (#217)
 
 ## Setup
 
@@ -35,10 +38,12 @@ Now open the Obsidian preferences and view the "Citations" tab. Paste the path t
 
 The plugin offers four simple features at the moment:
 
-1. **Open literature note** (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd>): automatically create or open a literature note for a particular reference. The title, folder, and initial content of the note can be configured in the plugin settings.
-2. **Insert literature note reference** (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd>): insert a link to the literature note corresponding to a particular reference.
-3. **Insert literature note content in the current pane** (no hotkey by default): insert content describing a particular reference into the current pane. (This can be useful for updating literature notes you already have but which are missing reference information.)
-4. **Insert Markdown citation** (no hotkey by default): insert a [Pandoc-style citation][3] for a particular reference. (The exact format of the citation can be configured in the plugin settings.)
+1. **Open literature note**: automatically create or open a literature note for a particular reference. The title, folder, and initial content of the note can be configured in the plugin settings.
+2. **Insert literature note reference**: insert a link to the literature note corresponding to a particular reference.
+3. **Insert literature note content in the current pane**: insert content describing a particular reference into the current pane. (This can be useful for updating literature notes you already have but which are missing reference information.)
+4. **Insert Markdown citation**: insert a [Pandoc-style citation][3] for a particular reference. (The exact format of the citation can be configured in the plugin settings.)
+
+No default hotkeys are set (to avoid conflicts between plugins and platforms); bind your own in Obsidian's **Hotkeys** settings. In the reference search modal you can search by title, author, year, or citekey. Press <kbd>Tab</kbd> on a reference to open it in Zotero, and <kbd>Shift</kbd>+<kbd>Tab</kbd> to open its attached PDF.
 
 ### Templates
 You can set up your own template for both the title and content of literature notes. The following variables can be used:
@@ -47,11 +52,19 @@ You can set up your own template for both the title and content of literature no
 * {{citekey}}
 * {{abstract}}
 * {{authorString}}
+* {{authorLastNameString}}
+* {{firstAuthorLastName}}
+* {{firstAuthorLastNameEtAl}}
 * {{containerTitle}}
+* {{dateAdded}}
 * {{DOI}}
 * {{eprint}}
 * {{eprinttype}}
 * {{eventPlace}}
+* {{files}}
+* {{ISBN}}
+* {{ISSN}}
+* {{keywords}}
 * {{page}}
 * {{publisher}}
 * {{publisherPlace}}
@@ -61,6 +74,8 @@ You can set up your own template for both the title and content of literature no
 * {{year}}
 * {{zoteroSelectURI}}
 ```
+
+Additionally, the Handlebars helper `{{now}}` inserts the current date (e.g. `{{now "YYYY-MM-DD"}}`); use `{{#each files}}...{{/each}}` to list attached PDF files.
 For example, your literature note title template can simply be `@{{citekey}}` and the content template can look like:
 ```
 ---

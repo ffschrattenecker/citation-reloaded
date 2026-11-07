@@ -102,6 +102,14 @@ export class WorkerManager {
       },
     );
   }
+
+  /**
+   * Terminate the underlying worker. Should be called when the plugin
+   * unloads so the worker does not outlive it.
+   */
+  terminate(): void {
+    this._worker.terminate();
+  }
 }
 
 export class WorkerManagerBlocked extends Error {

@@ -2,7 +2,6 @@ import {
   AbstractTextComponent,
   App,
   DropdownComponent,
-  FileSystemAdapter,
   PluginSettingTab,
   Setting,
 } from 'obsidian';
@@ -72,9 +71,7 @@ export class CitationSettingTab extends PluginSettingTab {
     const { containerEl } = this;
 
     containerEl.empty();
-    containerEl.setAttr('id', 'zoteroSettingTab');
-
-    containerEl.createEl('h2', { text: 'Citation plugin settings' });
+    containerEl.setAttr('id', 'citation-reloaded-settings');
 
     new Setting(containerEl)
       .setName('Citation database format')
@@ -142,7 +139,9 @@ export class CitationSettingTab extends PluginSettingTab {
     // elements above are created, since checkCitationExportPath toggles them.
     this.checkCitationExportPath(
       this.plugin.settings.citationExportPath,
-    ).then(() => this.showCitationExportPathSuccess());
+    ).then((success) => {
+      if (success) this.showCitationExportPathSuccess();
+    });
 
     new Setting(containerEl)
       .setName('Literature note folder')
@@ -151,7 +150,7 @@ export class CitationSettingTab extends PluginSettingTab {
         'Save literature note files in this folder within your vault. If empty, notes will be stored in the root directory of the vault.',
       );
 
-    containerEl.createEl('h3', { text: 'Template settings' });
+    new Setting(containerEl).setName('Templates').setHeading();
     const templateInstructionsEl = containerEl.createEl('p');
     templateInstructionsEl.append(
       createSpan({
@@ -206,7 +205,20 @@ export class CitationSettingTab extends PluginSettingTab {
       createSpan({ text: " for information on this object's structure." }),
     );
 
-    containerEl.createEl('h3', { text: 'Literature note templates' });
+    const templateHelpersEl = containerEl.createEl('p');
+    templateHelpersEl.append(
+      createSpan({
+        text:
+          'You can also use the helper ',
+      }),
+      createSpan({ text: '{{now}}', cls: 'text-monospace' }),
+      createSpan({
+        text:
+          ' to insert the current date (e.g. {{now "YYYY-MM-DD HH:mm"}} for a custom format).',
+      }),
+    );
+
+    new Setting(containerEl).setName('Literature note templates').setHeading();
 
     new Setting(containerEl)
       .setName('Literature note title template')
@@ -220,7 +232,7 @@ export class CitationSettingTab extends PluginSettingTab {
         this.buildValueInput(input, 'literatureNoteContentTemplate'),
       );
 
-    containerEl.createEl('h3', { text: 'Markdown citation templates' });
+    new Setting(containerEl).setName('Markdown citation templates').setHeading();
     containerEl.createEl('p', {
       text:
         'You can insert Pandoc-style Markdown citations rather than literature notes by using the "Insert Markdown citation" command. The below options allow customization of the Markdown citation format.',
@@ -245,18 +257,24 @@ export class CitationSettingTab extends PluginSettingTab {
   async checkCitationExportPath(filePath: string): Promise<boolean> {
     this.citationPathLoadingEl.addClass('d-none');
 
-    try {
-      await FileSystemAdapter.readLocalFile(
-        this.plugin.resolveLibraryPath(filePath),
-      );
+    if (!filePath) {
+      // No path configured yet: show neither error nor success.
       this.citationPathErrorEl.addClass('d-none');
-    } catch {
       this.citationPathSuccessEl.addClass('d-none');
-      this.citationPathErrorEl.removeClass('d-none');
       return false;
     }
 
-    return true;
+    const exists = await this.plugin.libraryFileExists(
+      this.plugin.resolveLibraryPath(filePath),
+    );
+    if (exists) {
+      this.citationPathErrorEl.addClass('d-none');
+      return true;
+    }
+
+    this.citationPathSuccessEl.addClass('d-none');
+    this.citationPathErrorEl.removeClass('d-none');
+    return false;
   }
 
   showCitationExportPathSuccess(): void {

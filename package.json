@@ -1,6 +1,6 @@
 {
   "name": "citation-reloaded",
-  "version": "0.4.6",
+  "version": "0.5.0",
   "description": "Automatically search and insert citations from a Zotero library",
   "main": "main.js",
   "scripts": {
@@ -27,7 +27,6 @@
     "@types/jest": "^29.5.14",
     "@types/lodash": "^4.17.16",
     "@types/node": "^26.6.6",
-    "codemirror": "^5.65.21",
     "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
@@ -58,5 +57,9 @@
     "transform": {
       "^.+\\.ts$": "ts-jest"
     }
+  },
+  "overrides": {
+    "deepmerge": "^4.3.1",
+    "minimatch": "^11.0.5"
   }
 }

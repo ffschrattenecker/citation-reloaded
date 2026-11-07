@@ -1,5 +1,6 @@
 import {
   App,
+  Editor,
   EventRef,
   FuzzyMatch,
   FuzzySuggestModal,
@@ -19,6 +20,28 @@ interface ChooserExt {
   useSelectedItem(evt: MouseEvent | KeyboardEvent): void;
 }
 
+/**
+ * Only these URI schemes may be handed to the OS via `open()` -- the values
+ * come from user-controlled bibliography files, so anything else (e.g.
+ * `https:` or `javascript:`) is refused.
+ */
+const ALLOWED_EXTERNAL_URI_SCHEMES = ['zotero:', 'file:'];
+
+export function openExternalUri(uri: string): void {
+  let scheme: string;
+  try {
+    scheme = new URL(uri).protocol;
+  } catch {
+    new Notice(`Cannot open malformed URI: ${uri}`);
+    return;
+  }
+  if (ALLOWED_EXTERNAL_URI_SCHEMES.includes(scheme)) {
+    open(uri);
+  } else {
+    new Notice(`Refusing to open URI with unsupported scheme: ${scheme}`);
+  }
+}
+
 class SearchModal extends FuzzySuggestModal<Entry> {
   plugin: CitationPlugin;
   limit = 50;
@@ -27,13 +50,16 @@ class SearchModal extends FuzzySuggestModal<Entry> {
 
   eventRefs: EventRef[];
 
-  constructor(app: App, plugin: CitationPlugin) {
+  private keydownListenerTimeout: ReturnType<typeof setTimeout>;
+
+  constructor(app: App, plugin: CitationPlugin, protected editor?: Editor) {
     super(app);
     this.plugin = plugin;
 
     this.resultContainerEl.addClass('zoteroModalResults');
 
     this.inputEl.setAttribute('spellcheck', 'false');
+    this.setPlaceholder('Search by title, author, year, or citekey');
 
     this.loadingEl = this.resultContainerEl.parentElement.createEl('div', {
       cls: 'zoteroModalLoading',
@@ -55,6 +81,10 @@ class SearchModal extends FuzzySuggestModal<Entry> {
       this.plugin.events.on('library-load-complete', () => {
         this.setLoading(false);
       }),
+
+      this.plugin.events.on('library-load-error', () => {
+        this.setLoading(false);
+      }),
     ];
 
     this.setLoading(this.plugin.isLibraryLoading);
@@ -62,18 +92,19 @@ class SearchModal extends FuzzySuggestModal<Entry> {
     // Don't immediately register keyevent listeners. If the modal was triggered
     // by an "Enter" keystroke (e.g. via the Obsidian command dialog), this event
     // will be received here erroneously.
-    setTimeout(() => {
+    this.keydownListenerTimeout = setTimeout(() => {
       this.inputEl.addEventListener('keydown', (ev) => this.onInputKeydown(ev));
       this.inputEl.addEventListener('keyup', (ev) => this.onInputKeyup(ev));
     }, 200);
   }
 
   onClose() {
+    clearTimeout(this.keydownListenerTimeout);
     this.eventRefs?.forEach((e) => this.plugin.events.offref(e));
   }
 
   getItems(): Entry[] {
-    if (this.plugin.isLibraryLoading) {
+    if (this.plugin.isLibraryLoading || !this.plugin.library) {
       return [];
     }
 
@@ -81,7 +112,10 @@ class SearchModal extends FuzzySuggestModal<Entry> {
   }
 
   getItemText(item: Entry): string {
-    return `${item.title} ${item.authorString} ${item.year}`;
+    // Include the citekey so references can be found by citekey as well
+    return [item.id, item.title, item.authorString, item.year]
+      .filter((part) => part != null && part !== '')
+      .join(' ');
   }
 
   setLoading(loading: boolean): void {
@@ -108,14 +142,12 @@ class SearchModal extends FuzzySuggestModal<Entry> {
   renderSuggestion(match: FuzzyMatch<Entry>, el: HTMLElement): void {
     el.empty();
     const entry = match.item;
-    const entryTitle = entry.title || '';
 
     const container = el.createEl('div', { cls: 'zoteroResult' });
+    const citekeyEl = container.createEl('span', { cls: 'zoteroCitekey' });
     const titleEl = container.createEl('span', {
       cls: 'zoteroTitle',
     });
-    container.createEl('span', { cls: 'zoteroCitekey', text: entry.id });
-
     const authorsCls = entry.authorString
       ? 'zoteroAuthors'
       : 'zoteroAuthors zoteroAuthorsEmpty';
@@ -123,11 +155,11 @@ class SearchModal extends FuzzySuggestModal<Entry> {
       cls: authorsCls,
     });
 
-    // Prepare to highlight string matches for each part of the search item.
-    // Compute offsets of each rendered element's content within the string
-    // returned by `getItemText`.
+    // Highlight string matches for each rendered part of the search item.
+    // `getItemText` returns `<citekey> <title> <authorString> <year>`, so
+    // compute each rendered element's offset within that string (the year is
+    // searchable but not rendered).
     const allMatches = match.match.matches;
-    const authorStringOffset = 1 + entryTitle.length;
 
     // Filter a match list to contain only the relevant matches for a given
     // substring, and with match indices shifted relative to the start of that
@@ -151,23 +183,22 @@ class SearchModal extends FuzzySuggestModal<Entry> {
         });
     };
 
-    // Now highlight matched strings within each element
-    renderMatches(
-      titleEl,
-      entryTitle,
-      shiftMatches(allMatches, 0, entryTitle.length),
-    );
-    if (entry.authorString) {
-      renderMatches(
-        authorsEl,
-        entry.authorString,
-        shiftMatches(
-          allMatches,
-          authorStringOffset,
-          authorStringOffset + entry.authorString.length,
-        ),
-      );
-    }
+    // Render each segment in the same order as `getItemText`, tracking the
+    // running offset (segments are joined by single spaces).
+    let offset = 0;
+    const renderSegment = (segmentEl: HTMLElement, text: string): void => {
+      const start = offset;
+      offset += text.length + 1;
+      if (text) {
+        renderMatches(segmentEl, text, shiftMatches(allMatches, start, start + text.length));
+      } else {
+        segmentEl.setText('');
+      }
+    };
+
+    renderSegment(citekeyEl, entry.id || '');
+    renderSegment(titleEl, entry.title || '');
+    renderSegment(authorsEl, entry.authorString || '');
   }
 
   onInputKeydown(ev: KeyboardEvent) {
@@ -213,18 +244,18 @@ export class OpenNoteModal extends SearchModal {
         if (pdfPaths.length == 0) {
           new Notice('This reference has no associated PDF files.');
         } else {
-          open(`file://${pdfPaths[0]}`);
+          openExternalUri(`file://${pdfPaths[0]}`);
         }
       } else {
-        open(item.zoteroSelectURI);
+        openExternalUri(item.zoteroSelectURI);
       }
     }
   }
 }
 
 export class InsertNoteLinkModal extends SearchModal {
-  constructor(app: App, plugin: CitationPlugin) {
-    super(app, plugin);
+  constructor(app: App, plugin: CitationPlugin, editor: Editor) {
+    super(app, plugin, editor);
 
     this.setInstructions([
       { command: '↑↓', purpose: 'to navigate' },
@@ -235,13 +266,16 @@ export class InsertNoteLinkModal extends SearchModal {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onChooseItem(item: Entry, evt: unknown): void {
-    this.plugin.insertLiteratureNoteLink(item.id).catch(console.error);
+    if (!this.editor) return;
+    this.plugin
+      .insertLiteratureNoteLink(item.id, this.editor)
+      .catch(console.error);
   }
 }
 
 export class InsertNoteContentModal extends SearchModal {
-  constructor(app: App, plugin: CitationPlugin) {
-    super(app, plugin);
+  constructor(app: App, plugin: CitationPlugin, editor: Editor) {
+    super(app, plugin, editor);
 
     this.setInstructions([
       { command: '↑↓', purpose: 'to navigate' },
@@ -255,13 +289,16 @@ export class InsertNoteContentModal extends SearchModal {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onChooseItem(item: Entry, evt: unknown): void {
-    this.plugin.insertLiteratureNoteContent(item.id).catch(console.error);
+    if (!this.editor) return;
+    this.plugin
+      .insertLiteratureNoteContent(item.id, this.editor)
+      .catch(console.error);
   }
 }
 
 export class InsertCitationModal extends SearchModal {
-  constructor(app: App, plugin: CitationPlugin) {
-    super(app, plugin);
+  constructor(app: App, plugin: CitationPlugin, editor: Editor) {
+    super(app, plugin, editor);
 
     this.setInstructions([
       { command: '↑↓', purpose: 'to navigate' },
@@ -272,9 +309,10 @@ export class InsertCitationModal extends SearchModal {
   }
 
   onChooseItem(item: Entry, evt: MouseEvent | KeyboardEvent): void {
+    if (!this.editor) return;
     const isAlternative = evt instanceof KeyboardEvent && evt.shiftKey;
     this.plugin
-      .insertMarkdownCitation(item.id, isAlternative)
+      .insertMarkdownCitation(item.id, this.editor, isAlternative)
       .catch(console.error);
   }
 }

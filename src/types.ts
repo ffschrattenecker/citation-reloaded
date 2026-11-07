@@ -16,12 +16,21 @@ export const TEMPLATE_VARIABLES = {
   citekey: 'Unique citekey',
   abstract: '',
   authorString: 'Comma-separated list of author names',
+  authorLastNameString: 'Comma-separated list of author last names',
+  firstAuthorLastName: 'Last name of the first author',
+  firstAuthorLastNameEtAl:
+    'Last name of the first author, followed by "et al." if there is more than one author',
   containerTitle:
     'Title of the container holding the reference (e.g. book title for a book chapter, or the journal title for a journal article)',
+  dateAdded: 'Date the reference was added to the reference manager',
   DOI: '',
   eprint: '',
   eprinttype: '',
   eventPlace: 'Location of event',
+  files: 'List of file paths attached to the reference (e.g. PDFs)',
+  ISBN: '',
+  ISSN: '',
+  keywords: 'Comma-separated list of keywords/tags',
   note: '',
   page: 'Page or page range',
   publisher: '',
@@ -51,11 +60,19 @@ export class Library {
 
       abstract: entry.abstract,
       authorString: entry.authorString,
+      authorLastNameString: entry.authorLastNameString,
+      firstAuthorLastName: entry.firstAuthorLastName,
+      firstAuthorLastNameEtAl: entry.firstAuthorLastNameEtAl,
       containerTitle: entry.containerTitle,
+      dateAdded: entry.dateAdded,
       DOI: entry.DOI,
       eprint: entry.eprint,
       eprinttype: entry.eprinttype,
       eventPlace: entry.eventPlace,
+      files: entry.files,
+      ISBN: entry.ISBN,
+      ISSN: entry.ISSN,
+      keywords: entry.keywords,
       note: entry.note,
       page: entry.page,
       publisher: entry.publisher,
@@ -117,6 +134,7 @@ export function loadEntries(
 export interface Author {
   given?: string;
   family?: string;
+  literal?: string;
 }
 
 /**
@@ -141,14 +159,57 @@ export abstract class Entry {
   public abstract authorString?: string;
 
   /**
+   * A comma-separated list of author last names.
+   */
+  public get authorLastNameString(): string {
+    return (this.author ?? [])
+      .map((a) => a.family || a.literal || a.given || '')
+      .filter((name) => name.length > 0)
+      .join(', ');
+  }
+
+  /**
+   * The last name of the first author (or the literal name for
+   * institutional authors without a family name).
+   */
+  public get firstAuthorLastName(): string {
+    const first = this.author?.[0];
+    return first ? first.family || first.literal || first.given || '' : '';
+  }
+
+  /**
+   * The last name of the first author followed by "et al." when the
+   * reference has more than one author -- e.g. `Smith et al.`.
+   */
+  public get firstAuthorLastNameEtAl(): string {
+    const lastName = this.firstAuthorLastName;
+    return this.author && this.author.length > 1
+      ? `${lastName} et al.`
+      : lastName;
+  }
+
+  /**
    * The name of the container for this reference -- in the case of a book
    * chapter reference, the name of the book; in the case of a journal article,
    * the name of the journal.
    */
   public abstract containerTitle?: string;
 
+  /**
+   * The date the reference was added to the reference manager, if known.
+   */
+  public abstract dateAdded?: string;
+
   public abstract DOI?: string;
   public abstract files?: string[];
+
+  public abstract ISBN?: string;
+  public abstract ISSN?: string;
+
+  /**
+   * A comma-separated list of keywords/tags attached to the reference.
+   */
+  public abstract keywords?: string;
 
   /**
    * The date of issue. Many references do not contain information about month
@@ -237,6 +298,11 @@ export interface EntryDataCSL {
   'event-place'?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   issued?: { 'date-parts': [any[]] };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  accessed?: { 'date-parts': [any[]] };
+  ISBN?: string;
+  ISSN?: string;
+  keyword?: string;
   page?: string;
   publisher?: string;
   'publisher-place'?: string;
@@ -266,6 +332,28 @@ export class EntryCSLAdapter extends Entry {
   }
   get author() {
     return this.data.author;
+  }
+
+  get dateAdded() {
+    const dateParts = this.data.accessed?.['date-parts']?.[0];
+    if (!dateParts || dateParts.length === 0) return null;
+    const [year, month, day] = dateParts;
+    let result = String(year);
+    if (month != null) result += `-${String(month).padStart(2, '0')}`;
+    if (day != null) result += `-${String(day).padStart(2, '0')}`;
+    return result;
+  }
+
+  get ISBN() {
+    return this.data.ISBN;
+  }
+
+  get ISSN() {
+    return this.data.ISSN;
+  }
+
+  get keywords() {
+    return this.data.keyword;
   }
 
   get authorString(): string | null {
@@ -431,6 +519,32 @@ export class EntryBibLaTeXAdapter extends Entry {
     return ret;
   }
 
+  get keywords(): string {
+    const keywords = this.data.fields.keywords;
+    if (!keywords) return null;
+    // The parser splits comma-separated keyword lists into arrays; rejoin
+    // with a plain comma to match the CSL `keyword` convention.
+    return Array.isArray(keywords) ? keywords.join(',') : keywords;
+  }
+
+  get ISBN(): string {
+    const isbn = this.data.fields.isbn;
+    if (!isbn) return null;
+    return Array.isArray(isbn) ? isbn[0] : isbn;
+  }
+
+  get ISSN(): string {
+    const issn = this.data.fields.issn;
+    if (!issn) return null;
+    return Array.isArray(issn) ? issn[0] : issn;
+  }
+
+  get dateAdded(): string {
+    const dateAdded = this.data.fields.dateadded;
+    if (!dateAdded) return null;
+    return Array.isArray(dateAdded) ? dateAdded[0] : dateAdded;
+  }
+
   get authorString() {
     if (this.data.creators.author) {
       const names = this.data.creators.author.map((name) => {
@@ -467,6 +581,7 @@ export class EntryBibLaTeXAdapter extends Entry {
     return this.data.creators.author?.map((a) => ({
       given: a.firstName,
       family: a.lastName,
+      literal: a.literal,
     }));
   }
 }

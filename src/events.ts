@@ -11,6 +11,7 @@ export default class CitationEvents extends Events {
     callback: () => void,
     ctx?: unknown,
   ): EventRef;
+  on(name: 'library-load-error', callback: () => void, ctx?: unknown): EventRef;
   on(
     name: string,
     callback: (...data: unknown[]) => void,
@@ -21,6 +22,7 @@ export default class CitationEvents extends Events {
 
   trigger(name: 'library-load-start'): void;
   trigger(name: 'library-load-complete'): void;
+  trigger(name: 'library-load-error'): void;
   trigger(name: string, ...data: unknown[]): void {
     super.trigger(name, data);
   }

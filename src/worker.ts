@@ -1,6 +1,7 @@
 import registerPromiseWorker from 'promise-worker/register';
 
-import { DatabaseType, EntryData, loadEntries } from './types';
+import { loadEntries } from './load-entries';
+import { DatabaseType, EntryData } from './types';
 
 registerPromiseWorker(
   (msg: { databaseRaw: string; databaseType: DatabaseType }): EntryData[] => {

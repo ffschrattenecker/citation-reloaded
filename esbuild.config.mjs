@@ -28,6 +28,7 @@ function webWorkerLoader() {
           format: 'iife',
           platform: 'browser',
           target: 'es2018',
+          minify: true,
           // Intentionally no sourcemap: the worker code is embedded into
           // main.js as a string, and an inline worker sourcemap nearly
           // doubles the size of the emitted bundle.
@@ -92,6 +93,7 @@ const common = {
   logLevel: 'info',
   outfile: path.join(SRC_PATH, 'main.js'),
   external: ['obsidian', 'original-fs'],
+  minify: true,
   plugins: [webWorkerLoader(), chokidarHacks()],
 };
 

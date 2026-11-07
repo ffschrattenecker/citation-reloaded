@@ -1,7 +1,7 @@
-import * as BibTeXParser from '@retorquere/bibtex-parser';
-import { Entry as EntryDataBibLaTeX } from '@retorquere/bibtex-parser';
-// Also make EntryDataBibLaTeX available to other modules
-export { Entry as EntryDataBibLaTeX } from '@retorquere/bibtex-parser';
+// Type-only imports/exports keep the bibtex parser out of the runtime
+// module graph, so the parser ships only inside the worker bundle.
+import type { Entry as EntryDataBibLaTeX } from '@retorquere/bibtex-parser';
+export type { Entry as EntryDataBibLaTeX } from '@retorquere/bibtex-parser';
 
 // Trick: allow string indexing onto object properties
 export interface IIndexable {
@@ -88,48 +88,7 @@ export class Library {
   }
 }
 
-/**
- * Load reference entries from the given raw database data.
- *
- * Returns a list of `EntryData`, which should be wrapped with the relevant
- * adapter and used to instantiate a `Library`.
- */
-export function loadEntries(
-  databaseRaw: string,
-  databaseType: DatabaseType,
-): EntryData[] {
-  let libraryArray: EntryData[];
-
-  if (databaseType == 'csl-json') {
-    libraryArray = JSON.parse(databaseRaw);
-  } else if (databaseType == 'biblatex') {
-    const options: BibTeXParser.ParserOptions = {
-      errorHandler: (err) => {
-        console.warn(
-          'Citation plugin: non-fatal error loading BibLaTeX entry:',
-          err,
-        );
-      },
-    };
-
-    const parsed = BibTeXParser.parse(
-      databaseRaw,
-      options,
-    ) as BibTeXParser.Bibliography;
-
-    parsed.errors.forEach((error) => {
-      console.error(
-        `Citation plugin: fatal error loading BibLaTeX entry` +
-          ` (line ${error.line}, column ${error.column}):`,
-        error.message,
-      );
-    });
-
-    libraryArray = parsed.entries;
-  }
-
-  return libraryArray;
-}
+// `loadEntries` lives in `./load-entries`, imported only by the worker.
 
 export interface Author {
   given?: string;

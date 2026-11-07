@@ -4,13 +4,13 @@ import * as path from 'path';
 import * as _ from 'lodash';
 import { compile as compileTemplate } from 'handlebars';
 
+import { loadEntries } from '../load-entries';
 import {
   Library,
   EntryDataBibLaTeX,
   EntryDataCSL,
   EntryBibLaTeXAdapter,
   EntryCSLAdapter,
-  loadEntries,
 } from '../types';
 
 const expectedRender: Record<string, string>[] = [

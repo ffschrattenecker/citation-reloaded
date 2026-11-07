@@ -18,6 +18,13 @@ releases prior to 0.4.6, see the upstream project at
   smoke test on the real vault; the unit-test adapter mocks now model
   the real path-joining behavior so this class of bug is covered.
 
+### Changed
+
+- The bundle is now minified and the external sourcemap is no longer
+  shipped inline, and the BibTeX parser is no longer bundled twice
+  (main bundle and embedded worker). This cuts `main.js` from
+  ~6.6 MB to ~0.76 MB.
+
 ## [0.5.0]
 
 ### Added

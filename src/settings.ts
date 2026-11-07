@@ -69,12 +69,6 @@ export class CitationSettingTab extends PluginSettingTab {
   }
 
   display(): void {
-    // Replaces the legacy `open()` override: Obsidian shows settings tabs
-    // via display() on current versions, so validate the export path here.
-    this.checkCitationExportPath(
-      this.plugin.settings.citationExportPath,
-    ).then(() => this.showCitationExportPathSuccess());
-
     const { containerEl } = this;
 
     containerEl.empty();
@@ -143,6 +137,12 @@ export class CitationSettingTab extends PluginSettingTab {
       cls: 'zoteroSettingCitationPathSuccess d-none',
       text: 'Loaded library with {{n}} references.',
     });
+
+    // Validate the export path on every display. Must run after the status
+    // elements above are created, since checkCitationExportPath toggles them.
+    this.checkCitationExportPath(
+      this.plugin.settings.citationExportPath,
+    ).then(() => this.showCitationExportPathSuccess());
 
     new Setting(containerEl)
       .setName('Literature note folder')

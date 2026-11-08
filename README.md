@@ -4,6 +4,8 @@ This plugin for [Obsidian](https://obsidian.md) integrates your academic referen
 
 **Maintained fork.** This is a continuation of [hans/obsidian-citation-plugin](https://github.com/hans/obsidian-citation-plugin), which is no longer maintained, published under a new plugin ID as `citation-reloaded`. Credit for the original plugin goes to Jon Gauthier and the contributors listed at the bottom of this file. Version 0.4.6 rebuilds the plugin with an ES2018 target so it loads on current Obsidian versions (Obsidian dropped ES5 plugin support; see upstream issue #288 and PR #289).
 
+**Looking for a plugin in the Obsidian community plugin browser?** Use [akhmialeuski/obsidian-citation-extended](https://github.com/akhmialeuski/obsidian-citation-extended), another maintained fork of the same upstream with many additional features. This fork is not intended for release in the community store.
+
 ![](screenshot.png)
 
 The plugin supports reading bibliographies in [BibTeX / BibLaTeX `.bib` format][4] and [CSL-JSON format][1].
@@ -22,7 +24,7 @@ Being a maintained fork means this plugin evolves again. Planned work:
 
 ## Setup
 
-You can install this plugin via the Obsidian community plugin browser once it is listed there; until then you can install it manually or with [BRAT](https://github.com/TfTHacker/obsidian42-brat) using the repository URL. It requires Obsidian 0.15.9 or higher.
+This plugin is not published in the Obsidian community plugin browser. Install it manually or with [BRAT](https://github.com/TfTHacker/obsidian42-brat) using the repository URL. It requires Obsidian 0.15.9 or higher.
 
 Once the plugin is installed, you must provide it with a bibliography file:
 

@@ -31,28 +31,23 @@ jobs:
       - run: npm test
       - run: npm run build
 
+      - name: Generate artifact attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+
+      # Create a draft release so the release notes can be reviewed and
+      # edited before publishing.
       - name: Create GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            main.js manifest.json styles.css \
-            --title "$GITHUB_REF_NAME" \
-            --notes "Release $GITHUB_REF_NAME of Citations Reloaded. See the changelog for details."
+          tag="${GITHUB_REF#refs/tags/}"
 
-      # Attest the release artifacts so the Obsidian community directory can
-      # verify they were built by this workflow.
-      - name: Attest main.js
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: main.js
-
-      - name: Attest manifest.json
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: manifest.json
-
-      - name: Attest styles.css
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: styles.css
+          gh release create "$tag" \
+            --title="$tag" \
+            --draft \
+            main.js manifest.json styles.css

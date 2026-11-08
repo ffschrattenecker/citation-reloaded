@@ -12,15 +12,7 @@ The plugin supports reading bibliographies in [BibTeX / BibLaTeX `.bib` format][
 
 ## Roadmap
 
-Being a maintained fork means this plugin evolves again. Planned work:
-
-- Keep template variables and behavior compatible with upstream unless there is a good reason to change
-- More upstream feature requests, e.g. templates loaded from a note file
-  (upstream issue #92), inserting multiple citations at once (#178),
-  per-note bibliography files in frontmatter (#134), and auto-updating
-  existing literature notes when the library or templates change
-  (#88, #154, #174, #215)
-- Citation support on Obsidian Canvas (#217)
+This fork is developed for my own needs; there are currently no planned features. If you use this plugin, feel free to open an issue -- I will take a look, but make no promises. For a more actively developed fork with new features, see [obsidian-citation-extended](https://github.com/akhmialeuski/obsidian-citation-extended) linked above.
 
 ## Setup
 

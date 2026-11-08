@@ -4,6 +4,15 @@ All notable changes to Citations Reloaded are documented here. For
 releases prior to 0.4.6, see the upstream project at
 <https://github.com/hans/obsidian-citation-plugin/releases>.
 
+## [0.5.2]
+
+### Changed
+
+- The release workflow now consolidates artifact attestation into a single
+  `actions/attest@v4` step and creates GitHub releases as drafts so release
+  notes can be reviewed before publishing, per the current Obsidian release
+  guide. No functional changes vs 0.5.1.
+
 ## [0.5.1]
 
 ### Fixed

@@ -1,6 +1,6 @@
 {
   "name": "citation-reloaded",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Automatically search and insert citations from a Zotero library",
   "main": "main.js",
   "scripts": {
